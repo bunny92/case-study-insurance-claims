@@ -1,14 +1,37 @@
-Insurance Claims Management Case Study
+# Insurance Claims Management System - Architecture Case Study
 
-Author
+**Author:** Sri Sasta Venkatesh  
 
-Sri Sasta Venkatesh
+**Role:** Frontend Architect
 
-⸻
+---
 
-1. Understanding the Problem
+## Overview
 
-Before discussing frameworks, components or technology choices, I started by understanding the business problem.
+This case study explains how I approached the design of an Insurance Claims Management platform that must support:
+
+- Claim search and management
+- Large document viewing
+- Document split and merge operations
+- Comments and annotations
+- Role-based access control
+
+The system is expected to handle:
+
+- 20,000+ insurance claims
+- Documents up to 1GB in size
+
+While many discussions focus on claim volume, I identified document management as the primary architectural challenge because large files directly impact performance, scalability, and user experience.
+
+---
+
+## Understanding the Problem
+
+Before selecting frameworks or defining technical solutions, I focused on understanding the business requirements and identifying the areas that could introduce the highest risk.
+
+Modern databases can easily manage tens of thousands of records using standard optimization techniques.
+
+The more critical concern is handling large documents efficiently without affecting application responsiveness.
 
 The platform is expected to support insurance claim processing where users can:
 
@@ -18,167 +41,242 @@ The platform is expected to support insurance claim processing where users can:
 * Add comments and annotations
 * Work with role-based permissions
 
-At first glance, the requirement mentions 20,000+ claims and documents up to 1GB.
-
-Many people immediately focus on the 20,000 records.
-
-I don’t consider that the primary challenge.
-
-Modern databases can handle millions of records efficiently.
-
-The real challenge in this system is large document processing and maintaining a responsive user experience while handling documents that may exceed browser limitations.
-
 Therefore, my design prioritizes document scalability first and claim listing second.
 
-⸻
+---
 
-2. Key Architectural Concerns
+## Risk Assessment
 
-When evaluating the requirements, I identified five major concerns.
+### Low-Risk Area: Claims Management
 
-Concern 1 - Large Documents
+Claims listing and searching are common enterprise requirements.
 
-Documents can be as large as 1GB.
+These can be solved using proven techniques such as:
 
-Loading such files directly into the browser introduces:
+- Pagination
+- Filtering
+- Database indexing
+- Sorting
 
-* High memory consumption
-* Long loading times
-* Browser crashes
-* Poor user experience
+These problems are predictable and scale well.
 
-This immediately eliminates any architecture that depends on loading complete files into the client.
+---
 
-⸻
+### High-Risk Area: Document Management
 
-Concern 2 - Long Running Operations
+Documents can exceed 1GB in size.
 
-Document splitting and merging are computationally expensive operations.
+This introduces several challenges:
 
-For small files this may not be noticeable.
+- High browser memory usage
+- Long loading times
+- Browser crashes
+- Slow user experience
+- Expensive processing operations
 
-For files approaching 1GB, these operations can take several minutes.
+Most architectural decisions were therefore driven by document management requirements rather than claim management requirements.
 
-I do not want users waiting on a loading spinner while their browser remains blocked.
+---
 
-⸻
+## Key Architectural Concerns
 
-Concern 3 - Security
+### 1. Large Documents
 
-The platform requires role-based permissions.
+Documents up to 1GB cannot be safely loaded entirely into the browser.
 
-One common mistake is treating frontend permissions as security.
+Potential issues include:
 
-Frontend visibility improves user experience but should never be considered a security boundary.
+- Memory exhaustion
+- Browser instability
+- Increased network usage
+- Slow rendering performance
 
-Backend authorization remains the source of truth.
+#### Design Principle
 
-⸻
+> Large documents should never be fully loaded into the browser.
 
-Concern 4 - Future Growth
+---
 
-The current requirement mentions 20,000 claims.
+### 2. Long Running Operations
 
-I assume the business will continue growing.
+Document operations such as:
 
-My architecture should still work if claim volume reaches:
+- Splitting
+- Merging
+- Converting
 
-* 100,000 claims
-* 500,000 claims
-* Millions of claims
+can take several minutes for large files.
 
-without requiring major redesign.
+Keeping users waiting behind a browser loading spinner is not acceptable.
 
-⸻
+#### Design Principle
 
-Concern 5 - Multiple Teams
+> Heavy document processing should be executed outside the browser.
+
+---
+
+### 3. Security
+
+The application requires role-based access control.
+
+One common mistake is relying solely on frontend permissions.
+
+Frontend controls improve user experience but should never be considered security boundaries.
+
+#### Design Principle
+
+> Backend authorization remains the source of truth.
+
+---
+### 4. Future Growth
+
+Current requirements mention 20,000 claims.
+I assume future growth scenarios such as:
+
+- 100,000 claims
+- 500,000 claims
+- Millions of claims
+
+The architecture should continue functioning without major redesign.
+
+---
+
+### 5. Multiple Teams
 
 Large enterprise applications rarely remain owned by a single team.
 
-The architecture should allow independent development and deployment without creating bottlenecks between teams.
+The architecture should support:
+
+- Independent deployments
+- Independent development cycles
+- Reduced team dependencies
 
 ⸻
 
-3. Architectural Vision
+## Architectural Vision
 
 My goal was to create a platform that remains:
 
-* Fast
-* Maintainable
-* Secure
-* Scalable
+- Fast
+- Secure
+- Maintainable
+- Scalable
 
 even as data volume and user count increase.
 
 Instead of building a large monolithic frontend, I chose domain-driven separation.
 
-The system naturally divides into:
+---
 
-* Claims
-* Documents
-* Comments
-* Administration
-* Security
+## Domain Separation
 
-Each domain can evolve independently while sharing common standards.
+The application is divided into business-focused domains.
 
-⸻
+#### Claims
 
-4. Claims Management Design
+- Claim listing
+- Search
+- Filtering
+- Claim details
 
-The requirement mentions 20,000+ claim records.
+#### Documents
 
-A common implementation is to request all records and perform filtering in the browser.
+- Viewing documents
+- Split operations
+- Merge operations
+- File management
+
+#### Comments
+
+- Comments
+- Annotations
+
+#### Administration
+
+- User management
+- Configuration
+- Operational settings
+
+### Security
+
+- Authentication
+- Authorization
+- Permissions
+
+This separation allows each area to evolve independently while reducing coupling between teams.
+
+---
+
+## Claims Management Design
+
+A common but inefficient approach is loading all records into the browser and performing filtering locally.
 
 I rejected this approach.
 
-The problem with client-side processing is that network cost, memory usage and rendering cost increase as the dataset grows.
+As datasets grow, client-side processing increases:
 
-Instead, I chose:
+- Network costs
+- Browser memory usage
+- Rendering overhead
 
-* Server-side pagination
-* Server-side filtering
-* Server-side sorting
+Instead, I selected:
 
-The browser only receives the information required for the current view.
+- Server-Side Pagination
+- Server-Side Filtering
+- Server-Side Sorting
 
-This keeps performance predictable regardless of data growth.
+---
 
-To further improve rendering performance, only visible rows are rendered on screen using virtualization.
+### Virtualized Rendering
 
-As a result, the browser behaves similarly whether there are:
+Even when a page contains many rows, rendering every DOM element is unnecessary.
 
-* 20,000 records
-* 200,000 records
-* 2 million records
+I use virtualization to render only visible rows.
 
-⸻
+#### Benefits
 
-5. Document Management Design
+- Faster rendering
+- Lower memory usage
+- Consistent scrolling performance
 
-This area represents the highest technical risk.
+The browser experience remains smooth whether the system contains:
 
-My first design principle was simple:
+- 20,000 records
+- 200,000 records
+- 2 million records
 
-Large documents should never be fully loaded into the browser.
+---
 
-Instead, documents are streamed incrementally.
+## Document Management Design
 
-If a user opens a 1000-page document and only views page 1, there is no reason to download pages 2 through 1000.
+Document management represents the highest technical risk in the system.
 
-The frontend requests only the content currently required.
+My first principle is:
 
-This dramatically reduces:
+> Load only what the user needs.
 
-* Memory usage
-* Initial load times
-* Network traffic
+For example:
 
-while providing a much smoother experience.
+If a document contains 1,000 pages and the user opens page 1, there is no reason to download pages 2–1000 immediately.
 
-⸻
+---
 
-6. Split and Merge Operations
+### Streaming Document Loading
+
+Documents are loaded incrementally.
+
+#### Benefits
+
+- Reduced memory consumption
+- Faster initial load times
+- Lower network usage
+- Better user experience
+
+This approach allows large documents to be viewed efficiently without overwhelming the browser.
+
+---
+
+## Split and Merge Operations
 
 The second design principle was:
 
@@ -186,8 +284,12 @@ Heavy document processing should not happen in the browser.
 
 Even modern browsers struggle with very large files.
 
-Instead, document operations are delegated to backend processing services.
+Executing these operations in the browser introduces:
 
+- UI freezing
+- Memory pressure
+- Poor reliability
+  
 When a user requests a split or merge:
 
 1. Request is submitted.
@@ -195,82 +297,179 @@ When a user requests a split or merge:
 3. Worker performs operation.
 4. User receives status updates.
 
-This prevents browser instability and allows the system to scale processing capacity independently.
+#### Benefits
 
-⸻
+- Non-blocking user experience
+- Better reliability
+- Independent scalability of processing services
 
-7. Security Approach
+---
 
-Role-based access is implemented at two levels.
+## Security Architecture
 
-Frontend:
+Security is implemented at two layers.
 
-Responsible for user experience.
+---
 
-Example:
+### Frontend Responsibilities
 
-If a user lacks delete permission, the delete action should not be visible.
+Frontend permissions improve usability.
 
-Backend:
+Examples:
 
-Responsible for enforcement.
+- Hide delete actions
+- Hide edit actions
+- Display role-specific screens
 
-Even if a user manually calls an API, permissions are validated before execution.
+These controls improve user experience but do not provide actual security.
 
-This ensures security policies cannot be bypassed.
+---
 
-⸻
+### Backend Responsibilities
 
-8. Scalability Strategy
+Every API request is validated.
 
-I deliberately avoided architectural decisions tied to current volume.
+Examples:
 
-Every major decision was evaluated against future growth.
+- View permissions
+- Edit permissions
+- Delete permissions
+- Administrative actions
 
-Questions I asked myself:
+Even if users manually invoke APIs, access checks remain enforced.
 
-What happens if claim volume increases tenfold?
+#### Principle
 
-What happens if document storage reaches multiple terabytes?
+> The backend should always own authorization decisions.
 
-What happens if multiple teams begin developing features simultaneously?
+---
 
-The selected architecture continues to operate effectively under those conditions without major structural changes.
+## Scalability Strategy
 
-⸻
+Every major design decision was evaluated against future growth.
 
-9. Trade-Offs Considered
+Questions considered:
 
-Why Pagination Instead of Infinite Scroll?
+- What happens if claim volume increases 10x?
+- What happens if document storage reaches terabytes?
+- What happens if multiple teams develop simultaneously?
 
-Insurance users frequently revisit records and require predictable navigation.
+The selected architecture continues operating efficiently without structural redesign.
 
-Pagination provides better traceability and auditing.
+---
 
-⸻
+## Trade-Offs
 
-Why Server Processing Instead of Browser Processing?
+### Why Pagination Instead of Infinite Scroll?
 
-Large documents exceed practical browser limitations.
+Insurance users often revisit records and require predictable navigation.
 
-Server-side processing provides greater reliability and scalability.
+Pagination provides:
 
-⸻
+- Better traceability
+- Easier auditing
+- Consistent navigation
 
-Why Domain Separation?
+---
+
+### Why Server Processing Instead of Browser Processing?
+
+Large documents exceed practical browser limits.
+
+Server-side processing provides:
+
+- Greater reliability
+- Better scalability
+- Better resource utilization
+
+---
+
+### Why Domain Separation?
 
 Business capabilities evolve independently.
 
-Separating domains reduces coupling and improves maintainability.
+Domain separation improves:
 
-⸻
+- Maintainability
+- Team autonomy
+- Deployment flexibility
 
-10. Final Thoughts
+---
 
-My architectural decisions were driven by risk, scalability and long-term maintainability rather than current implementation convenience.
+## Future Enhancements
 
-The largest risk in this platform is document processing, not claim listing.
+Potential future capabilities include:
 
-Therefore, the architecture focuses on minimizing browser responsibility, delegating heavy workloads to backend services and ensuring the frontend remains responsive regardless of document size.
+- AI-powered document classification
+- OCR-based data extraction
+- Fraud detection services
+- Real-time collaboration
+- Advanced reporting dashboards
+- Predictive claim analytics
 
-If claim volume, user count or document storage grows significantly over the next several years, the proposed architecture should continue supporting the business without requiring fundamental redesign.
+---
+
+## Proposed Technology Stack
+
+### Frontend
+
+- React
+- TypeScript
+- Module Federation
+- TanStack Query
+- Material MUI  (UI/UX)
+- Figma -(Design Tool)
+
+### Performance Optimization
+
+- Virtualized Rendering
+- Lazy Loading
+- Streaming Document Loading
+
+### Backend Concepts
+
+- Queue-Based Processing
+- Worker Services
+- REST APIs
+
+### Security
+
+- Role-Based Access Control (RBAC)
+- Backend Authorization
+
+---
+
+## Final Thoughts
+
+The architecture was designed around risk, scalability, and long-term maintainability rather than short-term implementation convenience.
+
+The largest challenge in this platform is not managing claims but efficiently handling large documents.
+
+To address this, the solution:
+
+- Minimizes browser workload
+- Offloads heavy processing to backend services
+- Maintains a responsive user experience
+- Supports future business growth
+
+With this design, increases in:
+
+- Claim volume
+- User count
+- Document storage
+
+can be accommodated without requiring fundamental architectural changes.
+
+---
+
+### Conclusion Summary
+
+- Domain-Driven Frontend Architecture
+- Server-Side Pagination, Filtering, and Sorting
+- Virtualized Table Rendering
+- Streaming Document Viewer
+- Queue-Based Document Processing
+- Background Worker Services
+- Role-Based Access Control
+- Scalable Multi-Team Development Model
+- Future-Ready Extensible Design
